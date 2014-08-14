@@ -4,7 +4,6 @@
 var express = require('express');
 var fs      = require('fs');
 var path      = require('path');
-var phantomjs = require('phantomjs').path;
 var spawn = require('child_process').spawn;
 var pageres = require('pageres');
 var request = require('request');
@@ -188,39 +187,6 @@ var ScreenshotsApp = function() {
                         Date(Date.now() ), self.ipaddress, self.port);
         });
     };
-
-    self._phantom = function (options) {
-        var cp = spawn(phantomjs, [
-            path.join(__dirname, 'converter.js'),
-            JSON.stringify(options),
-            '--ignore-ssl-errors=true',
-            '--local-to-remote-url-access=true'
-        ]);
-        var stream = cp.stdout.pipe(base64.decode());
-        process.stderr.setMaxListeners(0);
-
-        cp.stdout.on('data', function (data) {
-            if (/Couldn\'t load url/.test(data)) {
-                return stream.emit('error', new Error('Couldn\'t load url'));
-            }
-
-            if (/Couldn\'t add cookie/.test(data)) {
-                return stream.emit('error', new Error(data));
-            }
-        });
-
-        cp.stderr.on('data', function (data) {
-            if (/ phantomjs\[/.test(data)) {
-                return;
-            }
-
-            stream.emit('error', data);
-        });
-
-        return stream;
-    };
-
-
 };   /*  Sample Application.  */
 
 
