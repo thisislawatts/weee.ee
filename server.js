@@ -107,73 +107,81 @@ var ScreenshotsApp = function() {
             res.send("<html><body><img src='" + link + "'></body></html>");
         };
 
-        self.routes['/test'] = function(req, res) {
-
-            var sizes = [1024,250],
-                url = 'yeoman.io',
-                filename = self._filename( url, sizes ),
-                pr;
-
-            console.log("Checking for:", self.datadir + filename );
-            fs.exists( self.datadir + "/" + filename , function( exists ) {
-                if (exists) {
-                    console.log("File Exists: ", filename);
-                    res.setHeader('Content-Type', 'image/png');
-                    res.send( fs.readFileSync( self.datadir + filename) );
-
-                } else {
-                    console.log("File does not exist: Generating");
-                    pr = new pageres({delay: 2})
-                        .src( url, [ sizes.join('x') ] )
-                        .dest( self.datadir );
-
-                    pr.run(function(err, items) {
-
-                        if (err) {
-                            console.log("Failed to generate");
-                            throw err;
-                        }
-
-                        var imagepath = self.datadir + items[0].filename; 
-                        var info = sizeof(imagepath)
-
-                        console.log("Generated:", info );
-
-                        console.log("Target height:", (info.height/info.width) * 380);
-
-                        easyimage.resize({
-                            src: imagepath,
-                            dst: imagepath,
-                            width: 380,
-                            height: (info.height/info.width) * 380
-                        }).then(function(image) {
-
-                            console.log("Image Resized: ", image);
-                            res.setHeader('Content-Type', 'image/png');
-                            res.setHeader('Content-Disposition', 'inline; filename=' + items[0].filename );
-
-                            res.send( fs.readFileSync( imagepath ) );
-
-                        }, function(err) {
-                            
-                            console.log("Resize failed sending original capture. Error:", err);
-                            res.setHeader('Content-Type', 'image/png');
-                            res.setHeader('Content-Disposition', 'inline; filename=' + items[0].filename );
-                            res.send( fs.readFileSync( imagepath ) );
-                        });
-
-                        //request(items.pop()  .filename).pipe(res);
-                    });
-
-                }
-            });
-       }
-
         self.routes['/'] = function(req, res) {
-            res.setHeader('Content-Type', 'text/html');
-            res.send(self.cache_get('index.html') );
+            console.log(req.query);
+
+            if (!req.query['url']) {
+                res.setHeader('Content-Type', 'text/html');
+                res.send(self.cache_get('index.html') );
+            } else {
+                self.getThumbnail(req, res);
+            }
         };
     };
+
+    self.getThumbnail = function(req, res) {
+
+        var sizes = [1024,250],
+            url = req.query.url,
+            filename = self._filename( url, sizes ),
+            pr;
+
+        console.log("Checking for:", self.datadir + filename );
+
+        fs.exists( self.datadir + "/" + filename , function( exists ) {
+            if (exists) {
+                console.log("File Exists: ", filename);
+                res.setHeader('Content-Type', 'image/png');
+                res.send( fs.readFileSync( self.datadir + filename) );
+
+            } else {
+                console.log("File does not exist: Generating");
+                pr = new pageres({delay: 2})
+                    .src( url, [ sizes.join('x') ] )
+                    .dest( self.datadir );
+
+                pr.run(function(err, items) {
+
+                    if (err) {
+                        console.log("Failed to generate");
+                        throw err;
+                    }
+
+                    var imagepath = self.datadir + items[0].filename; 
+                    var info = sizeof(imagepath)
+
+                    console.log("Generated:", info );
+
+                    console.log("Target height:", (info.height/info.width) * 380);
+
+                    easyimage.resize({
+                        src: imagepath,
+                        dst: imagepath,
+                        width: 380,
+                        height: (info.height/info.width) * 380
+                    }).then(function(image) {
+
+                        console.log("Image Resized: ", image);
+                        res.setHeader('Content-Type', 'image/png');
+                        res.setHeader('Content-Disposition', 'inline; filename=' + items[0].filename );
+
+                        res.send( fs.readFileSync( imagepath ) );
+
+                    }, function(err) {
+                        
+                        console.log("Resize failed sending original capture. Error:", err);
+                        res.setHeader('Content-Type', 'image/png');
+                        res.setHeader('Content-Disposition', 'inline; filename=' + items[0].filename );
+                        res.send( fs.readFileSync( imagepath ) );
+                    });
+
+                    //request(items.pop()  .filename).pipe(res);
+                });
+
+            }
+        });
+    }
+
 
     self._filename = function(url, sizes) {
         return url + "-" + sizes.join("x") + ".png";
