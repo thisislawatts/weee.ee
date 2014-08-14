@@ -7,6 +7,8 @@ var path      = require('path');
 var spawn = require('child_process').spawn;
 var pageres = require('pageres');
 var request = require('request');
+var easyimage = require('easyimage');
+var sizeof = require('image-size');
 
 /**
  *  Define the sample application.
@@ -107,7 +109,7 @@ var ScreenshotsApp = function() {
 
         self.routes['/test'] = function(req, res) {
 
-            var sizes = [450,250],
+            var sizes = [1024,250],
                 url = 'yeoman.io',
                 filename = self._filename( url, sizes ),
                 pr;
@@ -126,13 +128,40 @@ var ScreenshotsApp = function() {
                         .dest( self.datadir );
 
                     pr.run(function(err, items) {
+
                         if (err) {
                             console.log("Failed to generate");
                             throw err;
                         }
-                        console.log("Generated");
-                        res.setHeader('Content-Type', 'image/png');
-                        res.send( fs.readFileSync( self.datadir + items[0].filename ) );
+
+                        var imagepath = self.datadir + items[0].filename; 
+                        var info = sizeof(imagepath)
+
+                        console.log("Generated:", info );
+
+                        console.log("Target height:", (info.height/info.width) * 380);
+
+                        easyimage.resize({
+                            src: imagepath,
+                            dst: imagepath,
+                            width: 380,
+                            height: (info.height/info.width) * 380
+                        }).then(function(image) {
+
+                            console.log("Image Resized: ", image);
+                            res.setHeader('Content-Type', 'image/png');
+                            res.setHeader('Content-Disposition', 'inline; filename=' + items[0].filename );
+
+                            res.send( fs.readFileSync( imagepath ) );
+
+                        }, function(err) {
+                            
+                            console.log("Resize failed sending original capture. Error:", err);
+                            res.setHeader('Content-Type', 'image/png');
+                            res.setHeader('Content-Disposition', 'inline; filename=' + items[0].filename );
+                            res.send( fs.readFileSync( imagepath ) );
+                        });
+
                         //request(items.pop()  .filename).pipe(res);
                     });
 
