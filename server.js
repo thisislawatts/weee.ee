@@ -26,7 +26,7 @@ var ScreenshotsApp = function() {
      */
     self.setupVariables = function() {
         //  Set the environment variables we need.
-        self.datadir   = process.env.OPENSHIFT_DATA_DIR || __dirname + "/tmp";
+        self.datadir   = process.env.OPENSHIFT_DATA_DIR || __dirname + "/tmp/";
         self.ipaddress = process.env.OPENSHIFT_NODEJS_IP;
         self.port      = process.env.OPENSHIFT_NODEJS_PORT || 8080;
 
@@ -112,25 +112,27 @@ var ScreenshotsApp = function() {
                 filename = self._filename( url, sizes ),
                 pr;
 
-            console.log("Checking:", self.datadir + "/" + filename );
+            console.log("Checking for:", self.datadir + filename );
             fs.exists( self.datadir + "/" + filename , function( exists ) {
                 if (exists) {
-
+                    console.log("File Exists: ", filename);
                     res.setHeader('Content-Type', 'image/png');
-                    res.send( fs.readFileSync( self.datadir + "/" + filename) );
+                    res.send( fs.readFileSync( self.datadir + filename) );
 
                 } else {
-
+                    console.log("File does not exist: Generating");
                     pr = new pageres({delay: 2})
                         .src( url, sizes.join('x') )
                         .dest( self.datadir );
 
                     pr.run(function(err, items) {
                         if (err) {
+                            console.log("Failed to generate");
                             throw err;
                         }
+                        console.log("Generated");
                         res.setHeader('Content-Type', 'image/png');
-                        res.send( fs.readFileSync( self.datadir + "/" + items[0].filename ) );
+                        res.send( fs.readFileSync( self.datadir + items[0].filename ) );
                         //request(items.pop()  .filename).pipe(res);
                     });
 
