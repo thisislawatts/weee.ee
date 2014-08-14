@@ -10,6 +10,6 @@
     "express": "3.x",
     "config": "0.4.15",
     "request": "^2.9.153",
-    "pageres": "^0.4.1",
+    "pageres": "^0.4.1"
   }
 }
