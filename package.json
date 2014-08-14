@@ -9,9 +9,9 @@
     "openshift"
   ],
   "author": {
-    "name": "OpenShift",
-    "email": "ramr@example.org",
-    "url": "http://www.openshift.com/"
+    "name": "Luke Watts",
+    "email": "luke@thisis.la",
+    "url": "http://www.thisis.la/"
   },
   "homepage": "http://www.openshift.com/",
   "repository": {
@@ -27,6 +27,7 @@
   "dependencies": {
     "express": "~3.4.4"
   },
+  
   "devDependencies": {},
   "bundleDependencies": [],
 

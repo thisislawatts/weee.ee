@@ -7,7 +7,7 @@ var fs      = require('fs');
 /**
  *  Define the sample application.
  */
-var SampleApp = function() {
+var ScreenshotsApp = function() {
 
     //  Scope.
     var self = this;
@@ -153,7 +153,7 @@ var SampleApp = function() {
 /**
  *  main():  Main code.
  */
-var zapp = new SampleApp();
+var zapp = new ScreenshotsApp();
 zapp.initialize();
 zapp.start();
 
