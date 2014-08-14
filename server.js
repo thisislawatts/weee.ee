@@ -122,7 +122,7 @@ var ScreenshotsApp = function() {
                 } else {
                     console.log("File does not exist: Generating");
                     pr = new pageres({delay: 2})
-                        .src( url, sizes.join('x') )
+                        .src( url, String([1,2].join('x')) )
                         .dest( self.datadir );
 
                     pr.run(function(err, items) {
