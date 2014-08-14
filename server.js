@@ -1,35 +1,236 @@
-/**
- * Module dependencies.
- */
-var config = require('config');
+'user strict';
+
+//  OpenShift sample Node application
 var express = require('express');
-var RasterizerService = require('./lib/rasterizerService');
-var FileCleanerService = require('./lib/fileCleanerService');
+var fs      = require('fs');
+var path      = require('path');
+var phantomjs = require('phantomjs').path;
+var spawn = require('child_process').spawn;
+var pageres = require('pageres');
+var request = require('request');
 
-process.on('uncaughtException', function (err) {
-  console.error("[uncaughtException]", err);
-  process.exit(1);
-});
+/**
+ *  Define the sample application.
+ */
+var ScreenshotsApp = function() {
 
-process.on('SIGTERM', function () {
-  process.exit(0);
-});
+    //  Scope.
+    var self = this;
 
-process.on('SIGINT', function () {
-  process.exit(0);
-});
 
-// web service
-var app = express();
-app.configure(function(){
-  app.use(express.static(__dirname + '/public'))
-  app.use(app.router);
-  app.set('rasterizerService', new RasterizerService(config.rasterizer).startService());
-  app.set('fileCleanerService', new FileCleanerService(config.cache.lifetime));
-});
-app.configure('development', function() {
-  app.use(express.errorHandler({ dumpExceptions: true, showStack: true }));
-});
-require('./routes')(app, config.server.useCors);
-app.listen(config.server.port);
-console.log('Express server listening on port ' + config.server.port);
+    /*  ================================================================  */
+    /*  Helper functions.                                                 */
+    /*  ================================================================  */
+
+    /**
+     *  Set up server IP address and port # using env variables/defaults.
+     */
+    self.setupVariables = function() {
+        //  Set the environment variables we need.
+        self.datadir   = process.env.OPENSHIFT_DATA_DIR || __dirname + "/tmp";
+        self.ipaddress = process.env.OPENSHIFT_NODEJS_IP;
+        self.port      = process.env.OPENSHIFT_NODEJS_PORT || 8080;
+
+        if (typeof self.ipaddress === "undefined") {
+            //  Log errors on OpenShift but continue w/ 127.0.0.1 - this
+            //  allows us to run/test the app locally.
+            console.warn('No OPENSHIFT_NODEJS_IP var, using 127.0.0.1');
+            self.ipaddress = "127.0.0.1";
+        };
+    };
+
+
+    /**
+     *  Populate the cache.
+     */
+    self.populateCache = function() {
+        if (typeof self.zcache === "undefined") {
+            self.zcache = { 'index.html': '' };
+        }
+
+        //  Local cache for static content.
+        self.zcache['index.html'] = fs.readFileSync('./views/index.html');
+    };
+
+
+    /**
+     *  Retrieve entry (content) from cache.
+     *  @param {string} key  Key identifying content to retrieve from cache.
+     */
+    self.cache_get = function(key) { return self.zcache[key]; };
+
+
+    /**
+     *  terminator === the termination handler
+     *  Terminate server on receipt of the specified signal.
+     *  @param {string} sig  Signal to terminate on.
+     */
+    self.terminator = function(sig){
+        if (typeof sig === "string") {
+           console.log('%s: Received %s - terminating sample app ...',
+                       Date(Date.now()), sig);
+           process.exit(1);
+        }
+        console.log('%s: Node server stopped.', Date(Date.now()) );
+    };
+
+
+    /**
+     *  Setup termination handlers (for exit and a list of signals).
+     */
+    self.setupTerminationHandlers = function(){
+        //  Process on exit and signals.
+        process.on('exit', function() { self.terminator(); });
+
+        // Removed 'SIGPIPE' from the list - bugz 852598.
+        ['SIGHUP', 'SIGINT', 'SIGQUIT', 'SIGILL', 'SIGTRAP', 'SIGABRT',
+         'SIGBUS', 'SIGFPE', 'SIGUSR1', 'SIGSEGV', 'SIGUSR2', 'SIGTERM'
+        ].forEach(function(element, index, array) {
+            process.on(element, function() { self.terminator(element); });
+        });
+    };
+
+
+    /*  ================================================================  */
+    /*  App server functions (main app logic here).                       */
+    /*  ================================================================  */
+
+    /**
+     *  Create the routing table entries + handlers for the application.
+     */
+    self.createRoutes = function() {
+        self.routes = { };
+
+        self.routes['/asciimo'] = function(req, res) {
+            var link = "http://i.imgur.com/kmbjB.png";
+            res.send("<html><body><img src='" + link + "'></body></html>");
+        };
+
+        self.routes['/test'] = function(req, res) {
+
+            var sizes = [450,250],
+                url = 'yeoman.io',
+                filename = self._filename( url, sizes ),
+                pr;
+
+            console.log("Checking:", self.datadir + "/" + filename );
+            fs.exists( self.datadir + "/" + filename , function( exists ) {
+                if (exists) {
+
+                    res.setHeader('Content-Type', 'image/png');
+                    res.send( fs.readFileSync( self.datadir + "/" + filename) );
+
+                } else {
+
+                    pr = new pageres({delay: 2})
+                        .src( url, sizes.join('x') )
+                        .dest( self.datadir );
+
+                    pr.run(function(err, items) {
+                        if (err) {
+                            throw err;
+                        }
+                        res.setHeader('Content-Type', 'image/png');
+                        res.send( fs.readFileSync( self.datadir + "/" + items[0].filename ) );
+                        //request(items.pop()  .filename).pipe(res);
+                    });
+
+                }
+            });
+       }
+
+        self.routes['/'] = function(req, res) {
+            res.setHeader('Content-Type', 'text/html');
+            res.send(self.cache_get('index.html') );
+        };
+    };
+
+    self._filename = function(url, sizes) {
+        return url + "-" + sizes.join("x") + ".png";
+    }
+
+
+    /**
+     *  Initialize the server (express) and create the routes and register
+     *  the handlers.
+     */
+    self.initializeServer = function() {
+        self.createRoutes();
+        self.app = express();
+
+        //  Add handlers for the app (from the routes).
+        for (var r in self.routes) {
+            self.app.get(r, self.routes[r]);
+        }
+    };
+
+
+    /**
+     *  Initializes the sample application.
+     */
+    self.initialize = function() {
+        self.setupVariables();
+        self.populateCache();
+        self.setupTerminationHandlers();
+
+        // Create the express server and routes.
+        self.initializeServer();
+    };
+
+
+    /**
+     *  Start the server (starts up the sample application).
+     */
+    self.start = function() {
+        //  Start the app on the specific interface (and port).
+        self.app.listen(self.port, self.ipaddress, function() {
+            console.log('%s: Node server started on %s:%d ...',
+                        Date(Date.now() ), self.ipaddress, self.port);
+        });
+    };
+
+    self._phantom = function (options) {
+        var cp = spawn(phantomjs, [
+            path.join(__dirname, 'converter.js'),
+            JSON.stringify(options),
+            '--ignore-ssl-errors=true',
+            '--local-to-remote-url-access=true'
+        ]);
+        var stream = cp.stdout.pipe(base64.decode());
+        process.stderr.setMaxListeners(0);
+
+        cp.stdout.on('data', function (data) {
+            if (/Couldn\'t load url/.test(data)) {
+                return stream.emit('error', new Error('Couldn\'t load url'));
+            }
+
+            if (/Couldn\'t add cookie/.test(data)) {
+                return stream.emit('error', new Error(data));
+            }
+        });
+
+        cp.stderr.on('data', function (data) {
+            if (/ phantomjs\[/.test(data)) {
+                return;
+            }
+
+            stream.emit('error', data);
+        });
+
+        return stream;
+    };
+
+
+};   /*  Sample Application.  */
+
+
+
+
+
+/**
+ *  main():  Main code.
+ */
+var zapp = new ScreenshotsApp();
+zapp.initialize();
+zapp.start();
+
