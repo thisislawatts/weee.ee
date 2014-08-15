@@ -129,14 +129,14 @@ var ScreenshotsApp = function() {
 
         console.log("Checking for:", self.datadir + filename );
 
-        fs.exists( self.datadir + "/" + filename , function( exists ) {
+        fs.exists( self.datadir + filename , function( exists ) {
             if (exists) {
                 console.log("File Exists: ", filename);
                 res.setHeader('Content-Type', 'image/png');
                 res.send( fs.readFileSync( self.datadir + filename) );
 
             } else {
-                console.log("File does not exist: Generating");
+                console.log("File does not exist: ", self.datadir + filename );
                 pr = new pageres({delay: 2})
                     .src( url, [ sizes.join('x') ] )
                     .dest( self.datadir );
@@ -155,11 +155,14 @@ var ScreenshotsApp = function() {
 
                     console.log("Target height:", (info.height/info.width) * 380);
 
-                    easyimage.resize({
+                    easyimage.rescrop({
                         src: imagepath,
                         dst: imagepath,
                         width: 380,
-                        height: (info.height/info.width) * 380
+                        height: (info.height/info.width) * 380,
+                        cropwidth: 380,
+                        cropheight: 213,
+                        gravity: 'NorthWest'
                     }).then(function(image) {
 
                         console.log("Image Resized: ", image);
