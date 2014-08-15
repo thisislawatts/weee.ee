@@ -9,6 +9,7 @@ var pageres = require('pageres');
 var request = require('request');
 var easyimage = require('easyimage');
 var sizeof = require('image-size');
+var urlvalid = require('url-valid');
 
 /**
  *  Define the sample application.
@@ -121,7 +122,7 @@ var ScreenshotsApp = function() {
 
     self.getThumbnail = function(req, res) {
 
-        var sizes = [1024,250],
+        var sizes = [1024,576],
             url = req.query.url,
             filename = self._filename( url, sizes ),
             pr;
@@ -196,10 +197,28 @@ var ScreenshotsApp = function() {
         self.createRoutes();
         self.app = express();
 
+        self.app.use(function(req, res, next) {
+
+            var testUrl = req.url.substr(1);
+            
+            urlvalid( testUrl, function(err, valid) {
+                
+                if (!valid) {
+                    next()
+                } else {
+                    req.query.url = testUrl;
+                    self.getThumbnail(req, res);
+                }
+
+            })
+        })
+
+
         //  Add handlers for the app (from the routes).
         for (var r in self.routes) {
             self.app.get(r, self.routes[r]);
         }
+
     };
 
 
