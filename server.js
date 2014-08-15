@@ -2,6 +2,7 @@
 
 //  OpenShift sample Node application
 var express = require('express');
+var urlMod = require('url');
 var fs      = require('fs');
 var path      = require('path');
 var spawn = require('child_process').spawn;
@@ -10,6 +11,7 @@ var request = require('request');
 var easyimage = require('easyimage');
 var sizeof = require('image-size');
 var urlvalid = require('url-valid');
+var slugifyUrl = require('slugify-url');
 
 /**
  *  Define the sample application.
@@ -188,7 +190,17 @@ var ScreenshotsApp = function() {
 
 
     self._filename = function(url, sizes) {
-        return url + "-" + sizes.join("x") + ".png";
+
+        var newUrl;
+        var name;
+
+        newUrl = url.replace(/^localhost/, 'http://$&');
+        newUrl = urlMod.parse(newUrl).protocol ? newUrl : 'http://' + newUrl;
+
+        name = slugifyUrl( newUrl).replace(/^(?:https?:\/\/)?www\./, '' );
+        name = name + '-' + sizes.join('x') + '.png';
+
+        return name;
     }
 
 
