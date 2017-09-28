@@ -7,14 +7,20 @@
     "node": ">=0.8.4"
   },
   "dependencies": {
-    "express": "3.x",
+    "express": "4.15.5",
     "config": "0.4.15",
     "request": "^2.9.153",
-    "pageres": "^0.4.1",
+    "pageres": "^1.0.0",
     "easyimage": "^1.0.1",
     "image-size": "^0.3.2",
     "url-valid": "^0.3.0",
     "slugify-url": "^1.2.0",
-    "url": "^0.10.1"
-  }
+    "url": "^0.10.1",
+    "snyk": "^1.41.1"
+  },
+  "scripts": {
+    "snyk-protect": "snyk protect",
+    "prepublish": "npm run snyk-protect"
+  },
+  "snyk": true
 }
