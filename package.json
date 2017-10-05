@@ -7,7 +7,7 @@
     "node": ">=0.8.4"
   },
   "dependencies": {
-    "express": "3.x",
+    "express": "4.16.0",
     "config": "0.4.15",
     "request": "^2.9.153",
     "pageres": "^0.4.1",
